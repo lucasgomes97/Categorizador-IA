@@ -1,0 +1,100 @@
+Infraestrutura
+    Linux
+    Rcxket.chat
+    Apache
+    NGINX
+    haproxy
+    DNS
+    Zimbra
+    E-mail
+    Liberação/Remoção de Acessos
+    4Projects
+    Google Drive
+    Zammad
+    Google Workspace
+    Sistemas de terceiros
+    Freem
+    Alteração de Senhas
+    Aquisição de Equipamentos
+    openVPN
+    Certificado SSL
+    Telefonia I Ramais
+    Problemas no Notebook
+    Proxmox
+    Instalação do OpenOffice
+
+Banco de Dados
+    PostgreSQL
+    MySQL
+    MariaDB
+    mongoDB
+    REDIS
+    Percona
+    CloudSQL
+    Aurora 
+
+Monitoramento
+    Zabbix
+    Prometheus
+    Grafana
+    ELK stack
+    Graylog
+
+Devops
+    Ansible
+    Puppet
+    Rundeck
+    AWX
+    Harbor
+    Docker Swarm
+    OKD
+    Traefik
+    Jenkins
+    Git
+    GitLab
+    Gitea
+    Python
+    Gitlab CI/CD
+
+Containers
+    Kubernetes
+    Docker
+    GKE
+    EKS
+    AKS
+    Rancher
+    OpenShift
+    OKD
+
+Cloud
+    Linux
+    Rocket.chat
+    Apache
+    NGINX
+    haproxy
+    DNS
+    Zimbra
+    E-mail
+    Liberação/Remoção de Acessos
+    4Projects
+    Google Drive
+    Zammad
+    Google workspace
+    Sistemas de terceiros
+    FreeIPA
+    Alteração de Senhas
+    Aquisição de Equipamentos
+    OpenVPN
+    Certificado SSL
+    Telefonia / Ramais
+    problemas no Notebook
+    Proxmox
+    Instalação do OpenOffice
+
+Desenvolvimento
+    AIA JedAl
+    AIA 4Linux
+    CR4
+
+Inteligência Artificial
+    Intellinode
