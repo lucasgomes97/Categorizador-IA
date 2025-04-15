@@ -148,7 +148,7 @@ proto-plus==1.26.0
 protobuf==5.28.0
 prov==2.0.1
 psutil==7.0.0
-psycopg2==2.9.9
+psycopg2-binary==2.9.9
 psycopg2-binary==2.9.9
 pure_eval==0.2.3
 puremagic==1.28
