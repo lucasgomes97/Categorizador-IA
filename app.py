@@ -12,7 +12,7 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 ZAMMAD_API_URL = os.getenv("ZAMMAD_API_URL")
 ZAMMAD_API_TOKEN = os.getenv("ZAMMAD_API_TOKEN")
-CATEGORIA_TXT = r"D:\4linux\categorizador I.A\api\categoria.txt"
+CATEGORIA_TXT = "categoria.txt"
 OPENAI_MODEL = "gpt-4"
 
 HEADERS_ZAMMAD = {
