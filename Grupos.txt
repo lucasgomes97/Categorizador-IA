@@ -1,0 +1,39 @@
+Categorias de Tickets:
+ID: 1, Nome: Tickets sem Atribuição
+ID: 2, Nome: Suporte::Clientes 8/5::CIP - Automação VDI LINUX        
+ID: 3, Nome: Suporte::Clientes 8/5::CCM Tecnologia
+ID: 4, Nome: Suporte::Clientes 8/5::Dimagem - PostgreSQL
+ID: 5, Nome: Suporte::Clientes 8/5::Multimagem - PostgreSQL
+ID: 6, Nome: Suporte::Clientes 8/5::Radiovida - PostgreSQL
+ID: 7, Nome: Suporte::Clientes 24/7::2S - Monitoramento
+ID: 8, Nome: Suporte::Clientes 24/7::CITS - Kubernetes
+ID: 9, Nome: Suporte::Clientes 24/7::Energisa - MongoDB e Redis      
+ID: 10, Nome: Suporte::Clientes 24/7::Thomson Reuters - PostgreSQL   
+ID: 11, Nome: 4Linux - Gerência
+ID: 12, Nome: 4Linux - Consultores
+ID: 13, Nome: Suporte::Clientes 24/7
+ID: 14, Nome: Suporte::Clientes 8/5
+ID: 15, Nome: Clientes Banco de Horas
+ID: 16, Nome: Clientes Banco de Horas::EISA - Banco de Horas
+ID: 17, Nome: Clientes Banco de Horas::Grupo Avenida - Banco de Horas
+ID: 18, Nome: Clientes Banco de Horas::Irko - Linux
+ID: 19, Nome: Clientes Banco de Horas::IW Softwares Inteligentes - Banco de Horas
+ID: 20, Nome: Clientes Banco de Horas::SGM Tecnologia - Banco de horas
+ID: 21, Nome: Clientes Banco de Horas::Samuel Gonçalves Labs
+ID: 22, Nome: 4Linux::Suporte Interno
+ID: 23, Nome: 4Linux
+ID: 24, Nome: 4Linux::Rankdone
+ID: 25, Nome: 4Linux::JedAI
+ID: 26, Nome: Suporte::Clientes 8/5::Grupo Avenida - Service Care
+ID: 27, Nome: Suporte
+ID: 28, Nome: Clientes Banco de Horas::2S - Banco de Horas
+ID: 29, Nome: Clientes Banco de Horas::Energisa - Banco de Horas
+ID: 30, Nome: Clientes Banco de Horas::Crefisa - Zabbix e Grafana
+ID: 31, Nome: Clientes Banco de Horas::AdvBox - Banco de Horas
+ID: 32, Nome: 4Linux::Desenvolvimento
+ID: 33, Nome: 4Linux::Desenvolvimento::JedAI - Desenvolvimento
+ID: 34, Nome: 4Linux::Desenvolvimento::Rankdone - Desenvolvimento
+ID: 35, Nome: Suporte::Garantia de Projetos
+ID: 36, Nome: Suporte::Garantia de Projetos::Rede Unifique - Garantia de Projeto
+ID: 37, Nome: 4Linux::Marketing
+ID: 41, Nome: Suporte::Clientes 24/7::Usiminas - Redis
