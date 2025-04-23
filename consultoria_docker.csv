@@ -1,54 +1,20 @@
-Tarefa;UST
-"Planejamento de Arquitetura de Containers: Definição da arquitetura ideal para containers,
-incluindo escolha de imagens, volumes e rede para otimizar desempenho e segurança";5
-"Configuração de Docker Swarm: Planejamento e implementação de um cluster Docker
-Swarm para orquestração de containers, incluindo a configuração de alta disponibilidade e
-balanceamento de carga.";6
-"Integração de Docker com Ferramentas de Monitoramento: Consultoria para integração do
-Docker com sistemas de monitoramento como Prometheus, Grafana e ELK Stack para
-rastreamento de métricas e logs";5
-"Customização de Imagens Docker: Desenvolvimento de imagens Docker personalizadas
-para atender a requisitos específicos de performance ou compatibilidade de soware.";4
-"Automação de Deploy de Containers: Criação de scripts e automações para deploy
-contínuo de containers em ambientes de produção e desenvolvimento.";5
-"Implementação de Políticas de Backup e Recuperação de Containers: Planejamento e
-configuração de estratégias de backup e recuperação de dados para containers Docker e
-volumes persistentes.";4
-"Implementação de Segurança Avançada para Docker: Configuração de políticas de
-segurança, como controle de acesso baseado em funções (RBAC), e hardening de
-containers.";5
-"Consultoria em Escalabilidade e Alta Disponibilidade para Docker: Planejamento de
-ambientes escaláveis e resilientes com Docker, incluindo balanceamento de carga e
-replicação de containers.";6
-"Desenvolvimento de Scripts para Automação de Tarefas Docker: Criação de scripts para
-automação de tarefas rotineiras, como limpeza de containers inativos e volumes não
-utilizados.";4
-"Configuração de Redes Avançadas para Docker: Implementação de redes customizadas
-para comunicação entre containers, incluindo redes overlay e integração com Docker
-Compose.";5
-"Análise e Otimização de Performance de Containers Docker: Diagnóstico e ajuste de
-containers com alto consumo de recursos, ajustando limites de CPU, memória e I/O.";5
-"Implementação de Políticas de Monitoramento de Containers: Definição e implementação
-de políticas de monitoramento e alertas, configurando ferramentas como Grafana e
-Prometheus para alertas em containers.";4
-"Consultoria para Expansão de Infraestrutura Docker: Planejamento e otimização da
-infraestrutura Docker para suportar um aumento de containers e garantir alta
-disponibilidade e performance.";5
-"Configuração de Docker Compose para Desenvolvimento: Configuração e otimização do
-Docker Compose para ambientes de desenvolvimento e teste, incluindo múltiplos
-containers e volumes.";3
-"Implementação de Certificados SSL/TLS para Containers Docker: Configuração de
-certificados de segurança para containers que utilizam serviços web ou precisam de
-comunicação criptografada.";4
-"Auditoria de Segurança de Containers Docker: Avaliação e correção de vulnerabilidades em
-containers Docker, incluindo o uso de ferramentas de análise de segurança como Docker
-Bench ou Clair.";5
-"Desenvolvimento de Regras de Monitoramento para Containers Docker: Criação de regras
-de monitoramento personalizadas para métricas específicas dos containers, como tempo
-de atividade, consumo de recursos e falhas de rede.";4
-"Planejamento de Implementação de Docker em Produção: Consultoria para implantação
-de Docker em ambientes de produção, com foco em segurança, escalabilidade e
-desempenho.";6
-"Treinamento e Transferência de Conhecimento sobre Docker: Treinamento da equipe
-interna para garantir o uso adequado do Docker, desde a criação de containers até a gestão
-avançada de clusters e redes";3
+Tarefa                                                                                                                                                                                                                         ; UST
+"Planejamento de Arquitetura de Containers: Definição da arquitetura ideal para containers, incluindo escolha de imagens, volumes e rede para otimizar desempenho e segurança"                                                 ;   5
+"Configuração de Docker Swarm: Planejamento e implementação de um cluster Docker Swarm para orquestração de containers, incluindo a configuração de alta disponibilidade e balanceamento de carga."                            ;   6
+"Integração de Docker com Ferramentas de Monitoramento: Consultoria para integração do Docker com sistemas de monitoramento como Prometheus, Grafana e ELK Stack para rastreamento de métricas e logs"                         ;   5
+"Customização de Imagens Docker: Desenvolvimento de imagens Docker personalizadas para atender a requisitos específicos de performance ou compatibilidade de software."                                                        ;   4
+"Automação de Deploy de Containers: Criação de scripts e automações para deploy contínuo de containers em ambientes de produção e desenvolvimento."                                                                            ;   5
+"Implementação de Políticas de Backup e Recuperação de Containers: Planejamento e configuração de estratégias de backup e recuperação de dados para containers Docker e volumes persistentes."                                 ;   4
+"Implementação de Segurança Avançada para Docker: Configuração de políticas de segurança, como controle de acesso baseado em funções (RBAC), e hardening de containers."                                                       ;   5
+"Consultoria em Escalabilidade e Alta Disponibilidade para Docker: Planejamento de ambientes escaláveis e resilientes com Docker, incluindo balanceamento de carga e replicação de containers."                                ;   6
+"Desenvolvimento de Scripts para Automação de Tarefas Docker: Criação de scripts para automação de tarefas rotineiras, como limpeza de containers inativos e volumes não utilizados."                                          ;   4
+"Configuração de Redes Avançadas para Docker: Implementação de redes customizadas para comunicação entre containers, incluindo redes overlay e integração com Docker Compose."                                                 ;   5
+"Análise e Otimização de Performance de Containers Docker: Diagnóstico e ajuste de containers com alto consumo de recursos, ajustando limites de CPU, memória e I/O."                                                          ;   5
+"Implementação de Políticas de Monitoramento de Containers: Definição e implementação de políticas de monitoramento e alertas, configurando ferramentas como Grafana e Prometheus para alertas em containers."                 ;   4
+"Consultoria para Expansão de Infraestrutura Docker: Planejamento e otimização da infraestrutura Docker para suportar um aumento de containers e garantir alta disponibilidade e performance."                                 ;   5
+"Configuração de Docker Compose para Desenvolvimento: Configuração e otimização do Docker Compose para ambientes de desenvolvimento e teste, incluindo múltiplos containers e volumes."                                        ;   3
+"Implementação de Certificados SSL/TLS para Containers Docker: Configuração de certificados de segurança para containers que utilizam serviços web ou precisam de comunicação criptografada."                                  ;   4
+"Auditoria de Segurança de Containers Docker: Avaliação e correção de vulnerabilidades em containers Docker, incluindo o uso de ferramentas de análise de segurança como Docker Bench ou Clair."                               ;   5
+"Desenvolvimento de Regras de Monitoramento para Containers Docker: Criação de regras de monitoramento personalizadas para métricas específicas dos containers, como tempo de atividade, consumo de recursos e falhas de rede.";   4
+"Planejamento de Implementação de Docker em Produção: Consultoria para implantação de Docker em ambientes de produção, com foco em segurança, escalabilidade e desempenho."                                                    ;   6
+"Treinamento e Transferência de Conhecimento sobre Docker: Treinamento da equipe interna para garantir o uso adequado do Docker, desde a criação de containers até a gestão avançada de clusters e redes."                     ;   3
