@@ -1,18 +1,22 @@
 import streamlit as st
 import requests
 import os
-import openai
 from dotenv import load_dotenv
 import csv
+from openai import OpenAI
+import json
+
 
 # === CONFIGURAÇÕES ===
 
 load_dotenv()
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+)
 ZAMMAD_API_URL = os.getenv("ZAMMAD_API_URL")
 ZAMMAD_API_TOKEN = os.getenv("ZAMMAD_API_TOKEN")
-CATEGORIA_TXT = "categoria.txt"
+CATEGORIA_TXT = "categorias.json"
 OPENAI_MODEL = "gpt-4"
 
 HEADERS_ZAMMAD = {
@@ -23,19 +27,10 @@ HEADERS_ZAMMAD = {
 # === FUNÇÕES ===
 
 def carregar_categorias(filepath):
-    categorias = {}
-    categoria_pai = None
     with open(filepath, encoding="utf-8") as f:
-        for linha in f:
-            linha = linha.rstrip()
-            if not linha:
-                continue
-            if not linha.startswith(" "):
-                categoria_pai = linha.strip()
-                categorias[categoria_pai] = []
-            else:
-                categorias[categoria_pai].append(linha.strip())
+        categorias = json.load(f)
     return categorias
+
 
 def carregar_grupos(path_txt):
     grupos = {}
@@ -51,55 +46,81 @@ def carregar_grupos(path_txt):
 
 
 def gerar_prompt(title, note, categorias_dict):
-    prompt = '''Você é um assistente de categorização de chamados de service desk. Classifique corretamente chamados conforme categorias/subcategorias fornecidas.
-🔹 REGRAS IMPORTANTES:
-- Use apenas as categorias/subcategorias da lista abaixo.
-- Analise o contexto da descrição do chamado.
-- Se tiver dúvida entre opções semelhantes, escolha a mais específica possível.
-.\n\n'''
-    for pai, filhos in categorias_dict.items():
-        for filho in filhos:
-            prompt += f"- {pai} > {filho}\n"
-    prompt += f"\nTítulo: {title.strip()}\n"
+    prompt = """Você é um assistente especializado na **categorização de chamados de Service Desk**. Sua tarefa é analisar o título e a descrição do chamado e classificá-lo corretamente com **uma categoria e subcategoria** entre as opções fornecidas.
+
+📌 **REGRAS IMPORTANTES**:
+- Use **exclusivamente** as categorias e subcategorias listadas abaixo.
+- Algumas podem estar escritas de forma diferente no chamado. Use o **contexto e o significado** para encontrar a correspondência correta.
+- Se houver mais de uma possibilidade, escolha a opção **mais precisa e relevante**.
+- **Não invente** novas categorias ou subcategorias.
+- A saída deve ser apenas no formato: `Categoria > Subcategoria`
+
+🔽 **Categorias e Subcategorias Disponíveis**:
+"""
+    for categoria, subcategorias in categorias_dict.items():
+        for sub in subcategorias:
+            prompt += f"- {categoria} > {sub}\n"
+
+    prompt += "\n"
+    prompt += f"📝 **Título do chamado**: {title.strip()}\n"
     if note:
-        prompt += f"Descrição: {note.strip()}\n"
-    prompt += "\nResponda apenas com o nome da subcategoria mais adequada (não inclua o nome da categoria pai)."
+        prompt += f"🧾 **Descrição detalhada**: {note.strip()}\n"
+    prompt += "\n✅ **Classificação final esperada**: Apenas o nome da categoria e subcategoria, no formato `Categoria > Subcategoria`"
+    
     return prompt
 
+
 def classificar_com_openai(prompt):
-    response = openai.ChatCompletion.create(
-        model=OPENAI_MODEL,
-        messages=[
-            {"role": "system", "content": "Você é um assistente de categorização de chamados técnicos."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2
-    )
-    return response['choices'][0]['message']['content'].strip()
+    try:
+        response = client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": "Você é um assistente de categorização de chamados técnicos."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2
+        )
+        
+        resposta = response.choices[0].message.content.strip()
+        
+        if ">" not in resposta or len(resposta.split(">")) != 2:
+            return None, None  # retorno seguro para tratar depois
+
+        categoria, subcategoria = [parte.strip() for parte in resposta.split(">")]
+
+        if not categoria or not subcategoria:
+            return None, None
+
+        return categoria, subcategoria
+    
+    except Exception as e:
+        print(f"Erro ao classificar categoria: {str(e)}")
+        return None, None
+
 
 def classificar_grupo_com_openai(title, note, grupos_dict):
     nomes_grupos = list(grupos_dict.keys())
     opcoes_formatadas = "\n".join([f"- {g}" for g in nomes_grupos])
 
     prompt = f"""
-Você é um assistente técnico responsável por classificar chamados. Com base no título e na descrição de um chamado, classifique-o de acordo com o grupo correto abaixo:
+        Você é um assistente técnico responsável por classificar chamados. Com base no título e na descrição de um chamado, classifique-o de acordo com o grupo correto abaixo:
 
-Grupos disponíveis:
-{opcoes_formatadas}
+        Grupos disponíveis:
+        {opcoes_formatadas}
 
-Título: {title}
-Descrição: {note}
+        Título: {title}
+        Descrição: {note}
 
-Retorne apenas o **NOME exato** de um dos grupos listados.
-Retorne apenas o nome do grupo, sem explicações adicionais.
+        Retorne apenas o **NOME exato** de um dos grupos listados.
+        Retorne apenas o nome do grupo, sem explicações adicionais.
 
-""".strip()
+        """.strip()
 
     if not title.strip() and not note.strip():
         return "Indefinido – título ou descrição ausente."
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": "Você é um assistente técnico especialista em direcionar chamados para o grupo correto."},
@@ -107,7 +128,7 @@ Retorne apenas o nome do grupo, sem explicações adicionais.
             ],
             temperature=0.2
         )
-        nome_grupo = response['choices'][0]['message']['content'].strip()
+        nome_grupo = response.choices[0].message.content.strip()
         grupo_id = grupos_dict.get(nome_grupo, "Não encontrado")
         return nome_grupo, grupo_id
     except Exception as e:
@@ -144,7 +165,7 @@ Responda apenas com: N1, N2 ou N3.
     prompt = definicoes_nivel.format(title=title, note=note)
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": "Você é um assistente técnico especializado em suporte a Docker."},
@@ -152,7 +173,7 @@ Responda apenas com: N1, N2 ou N3.
             ],
             temperature=0.2
         )
-        return response['choices'][0]['message']['content'].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Erro ao classificar nível: {str(e)}"
 
@@ -180,7 +201,7 @@ Responda apenas com: 1 Crítico, 2 Alto, 3 Normal ou 4 Baixo.
     prompt = definicoes_criticidade.format(title=title, note=note)
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": "Você é um assistente técnico especializado em suporte a chamados."},
@@ -188,7 +209,7 @@ Responda apenas com: 1 Crítico, 2 Alto, 3 Normal ou 4 Baixo.
             ],
             temperature=0.2
         )
-        return response['choices'][0]['message']['content'].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Erro ao classificar criticidade: {str(e)}"
     
@@ -215,7 +236,7 @@ Responda apenas com: 1 baixo, 2 normal ou 3 alto.
     prompt = definicoes_prioridade.format(title=title, note=note)
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": "Você é um assistente técnico especializado em triagem de chamados."},
@@ -223,7 +244,7 @@ Responda apenas com: 1 baixo, 2 normal ou 3 alto.
             ],
             temperature=0.2
         )
-        return response['choices'][0]['message']['content'].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Erro ao classificar prioridade: {str(e)}"
 
@@ -250,19 +271,19 @@ def encontrar_melhor_atividade(descricao_chamado, atividades):
         return None
 
     prompt = f"""
-Você é um assistente técnico. A seguir estão descrições de tarefas com suas respectivas estimativas de esforço (UST). Com base no chamado descrito abaixo, escolha a tarefa que mais se adequa. Retorne exatamente o texto da tarefa conforme aparece na lista e o valor UST desta tarefa.
+        Você é um assistente técnico. A seguir estão descrições de tarefas com suas respectivas estimativas de esforço (UST). Com base no chamado descrito abaixo, escolha a tarefa que mais se adequa. Retorne exatamente o texto da tarefa conforme aparece na lista e o valor UST desta tarefa.
 
-Chamado:
-{descricao_chamado}
+        Chamado:
+        {descricao_chamado}
 
-Tarefas disponíveis:
-""" + "\n".join([f"- {desc} (UST: {ust})" for desc, ust in atividades]) + """
+        Tarefas disponíveis:
+        """ + "\n".join([f"- {desc} (UST: {ust})" for desc, ust in atividades]) + """
 
-Retorne exatamente a descrição da tarefa mais adequada e seu valor em UST, sem alterar o texto.
-"""
+        Retorne exatamente a descrição da tarefa mais adequada e seu valor em UST, sem alterar o texto.
+        """
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": "Você é um assistente que escolhe tarefas com base em descrições de chamados."},
@@ -270,7 +291,7 @@ Retorne exatamente a descrição da tarefa mais adequada e seu valor em UST, sem
             ],
             temperature=0.2
         )
-        descricao_escolhida = response['choices'][0]['message']['content'].strip()
+        descricao_escolhida = response.choices[0].message.content.strip()
 
         # Localiza a UST original correspondente à descrição retornada
         for desc, ust in atividades:
@@ -300,29 +321,29 @@ def classificar_tipo_chamado(title, note, atividades_ust):
 
     # Monta o prompt com o UST estimado
     prompt = f"""
-Você é um assistente técnico de Service Desk onde analisa chamados técnicos.
+        Você é um assistente técnico de Service Desk onde analisa chamados técnicos.
 
-Com base no título e na descrição do chamado, classifique somente como requisição ou incidente, use a definição abaixo para verificar qual melhor se adequa:
+        Com base no título e na descrição do chamado, classifique somente como requisição ou incidente, use a definição abaixo para verificar qual melhor se adequa:
 
-- **Requisição**: quando se trata de solicitações que exigem execução/desemvolvimento de tarefas, mudanças ou serviços.
-- **Incidente**: quando se trata de erros, falhas ou interrupções.
+        - **Requisição**: quando se trata de solicitações que exigem execução/desemvolvimento de tarefas, mudanças ou serviços.
+        - **Incidente**: quando se trata de erros, falhas ou interrupções.
 
-Se for classificado como Requisição, analise a descrição do chamado e com base nas atividades abaixo, estime a quantidade de UST (Unidades de Serviço Técnico) envolvidas.
+        Se for classificado como Requisição, analise a descrição do chamado e com base nas atividades abaixo, estime a quantidade de UST (Unidades de Serviço Técnico) envolvidas.
 
-**Atividades e UST disponíveis:**
-{atividades_ust}
+        **Atividades e UST disponíveis:**
+        {atividades_ust}
 
 
-Título: {title}
-Descrição: {note}
+        Título: {title}
+        Descrição: {note}
 
-Retorne neste formato:
-Tipo: Requisição ou Incidente
-UST estimado: {ust_estimado} Atenção o ust deve ser o mesmo do que está no arquivo, não mude.
-""".strip()
+        Retorne neste formato:
+        Tipo: Requisição ou Incidente
+        UST estimado: {ust_estimado} Atenção o ust deve ser o mesmo do que está no arquivo, não mude.
+        """.strip()
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
                 {"role": "system", "content": "Você é um assistente técnico especializado em classificação de chamados."},
@@ -330,7 +351,7 @@ UST estimado: {ust_estimado} Atenção o ust deve ser o mesmo do que está no ar
             ],
             temperature=0.2
         )
-        return response['choices'][0]['message']['content'].strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Erro ao classificar tipo: {str(e)}"
 
@@ -343,12 +364,16 @@ def atualizar_categoria_chamado(ticket_id, categoria_pai, subcategoria):
     resposta = requests.put(url, headers=HEADERS_ZAMMAD, json=payload)
     return resposta.status_code == 200, resposta.text
 
-def encontrar_categoria_pai(categorias_dict, subcategoria):
-    for pai, filhos in categorias_dict.items():
-        if subcategoria.lower() in [f.lower() for f in filhos]:
-            return pai
-    return None
 
+def encontrar_categoria_pai(categorias, subcategoria_alvo):
+    subcategoria_alvo = subcategoria_alvo.strip().lower()
+    for categoria_pai, subcategorias in categorias.items():
+        for sub in subcategorias:
+            if sub.strip().lower() == subcategoria_alvo:
+                return categoria_pai
+    return None
+    
+  
 def buscar_chamado_por_numero(numero):
     url = f"{ZAMMAD_API_URL}/api/v1/tickets/search?query=number:{numero}"
     resposta = requests.get(url, headers=HEADERS_ZAMMAD)
@@ -359,6 +384,7 @@ def buscar_chamado_por_numero(numero):
             if 'assets' in resultados and str(ticket_id) in resultados['assets']['Ticket']:
                 return resultados['assets']['Ticket'][str(ticket_id)]
     return None
+
 
 def obter_primeira_descricao(ticket_id):
     url = f"{ZAMMAD_API_URL}/api/v1/ticket_articles/by_ticket/{ticket_id}"
@@ -416,12 +442,20 @@ with st.form("formulario_chamado"):
         prompt = gerar_prompt(title, note, categorias)
 
         try:
-            subcategoria = classificar_com_openai(prompt)
+            categoria, subcategoria = classificar_com_openai(prompt)
+
+            if not categoria or not subcategoria:
+                st.error("❌ Resposta inválida da OpenAI.")
+                st.stop()
+
             categoria_pai = encontrar_categoria_pai(categorias, subcategoria)
 
             if not categoria_pai:
-                st.error(f"❌ Subcategoria '{subcategoria}' não encontrada.")
+                st.error(f"❌ Subcategoria '{subcategoria}' não encontrada nas categorias fornecidas.")
                 st.stop()
+
+            # Exibir sucesso (opcional)
+            st.success(f"✅ Classificado como: {categoria} > {subcategoria}")
 
             nivel_sugerido = classificar_nivel_com_openai(title, note)
             criticidade_sugerida = classificar_criticidade_com_openai(title, note)
