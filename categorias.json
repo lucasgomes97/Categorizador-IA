@@ -1,0 +1,86 @@
+{
+  "Infraestrutura": [
+    "Linux",
+    "Rocket.chat",
+    "Apache",
+    "NGINX",
+    "HAProxy",
+    "DNS",
+    "Zimbra",
+    "E-mail",
+    "Liberação/Remoção de Acessos",
+    "4Projects",
+    "Google Drive",
+    "Zammad",
+    "Google Workspace",
+    "Sistemas de Terceiros",
+    "FreeIPA",
+    "Alteração de Senhas",
+    "Aquisição de Equipamentos",
+    "OpenVPN",
+    "Certificado SSL",
+    "Telefonia / Ramais",
+    "Problemas no Notebook",
+    "Proxmox",
+    "Instalação do OpenOffice",
+    "Wordpress"
+  ],
+  "Banco de Dados": [
+    "PostgreSQL",
+    "MySQL",
+    "MariaDB",
+    "MongoDB",
+    "REDIS",
+    "Percona",
+    "CloudSQL",
+    "Aurora"
+  ],
+  "Monitoramento": [
+    "Zabbix",
+    "Prometheus",
+    "Grafana",
+    "ELK Stack",
+    "Graylog"
+  ],
+  "DevOps": [
+    "Ansible",
+    "Puppet",
+    "Rundeck",
+    "AWX",
+    "Harbor",
+    "Docker Swarm",
+    "OKD",
+    "Traefik",
+    "Jenkins",
+    "Git",
+    "GitLab",
+    "Gitea",
+    "Python",
+    "GitLab CI/CD"
+  ],
+  "Containers": [
+    "Kubernetes",
+    "Docker",
+    "GKE",
+    "EKS",
+    "AKS",
+    "Rancher",
+    "OpenShift",
+    "OKD"
+  ],
+  "Cloud": [
+    "AWS",
+    "GCP",
+    "Azure",
+    "OCI",
+    "Terraform"
+  ],
+  "Desenvolvimento": [
+    "AIA JedAl",
+    "AIA 4Linux",
+    "CR4"
+  ],
+  "Inteligência Artificial": [
+    "Intellinode"
+  ]
+}
