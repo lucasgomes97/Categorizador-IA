@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import csv
 from openai import OpenAI
 import json
-
+import PyPDF2
 
 # === CONFIGURAÇÕES ===
 
@@ -103,7 +103,7 @@ def classificar_grupo_com_openai(title, note, grupos_dict):
     opcoes_formatadas = "\n".join([f"- {g}" for g in nomes_grupos])
 
     prompt = f"""
-        Você é um assistente técnico responsável por classificar chamados. Com base no título e na descrição de um chamado, classifique-o de acordo com o grupo correto abaixo:
+        Você é um assistente técnico responsável por classificar chamados. Com base no título e na descrição de um chamado, classifique-o de acordo com o grupo correto abaixo,selecione apenas 1 grupo:
 
         Grupos disponíveis:
         {opcoes_formatadas}
@@ -112,7 +112,7 @@ def classificar_grupo_com_openai(title, note, grupos_dict):
         Descrição: {note}
 
         Retorne apenas o **NOME exato** de um dos grupos listados.
-        Retorne apenas o nome do grupo, sem explicações adicionais.
+        Retorne apenas 1 grupo, sem explicações adicionais.
 
         """.strip()
 
@@ -249,12 +249,14 @@ Responda apenas com: 1 baixo, 2 normal ou 3 alto.
         return f"Erro ao classificar prioridade: {str(e)}"
 
 
-# Função para extrair as tarefas do CSV
 def extrair_atividades_csv(caminho_csv):
     atividades = []
+    nome_catalogo = extrair_nome_catalogo_pdf("CSTI_Docker.pdf")
     with open(caminho_csv, encoding='cp1252') as arquivo:
         leitor = csv.reader(arquivo, delimiter=';')
-        next(leitor)  # pula o cabeçalho
+        primeira_linha = next(leitor)  # Lê cabeçalho ou primeira linha
+        if primeira_linha and "Catálogo" in primeira_linha[0]:
+            nome_catalogo = primeira_linha[0].strip()
         for linha in leitor:
             if len(linha) >= 2:
                 descricao = linha[0].strip()
@@ -263,7 +265,22 @@ def extrair_atividades_csv(caminho_csv):
                     atividades.append((descricao, ust))
                 except ValueError:
                     continue
-    return atividades
+    return nome_catalogo, atividades
+
+
+def extrair_nome_catalogo_pdf(caminho_pdf):
+    try:
+        with open(caminho_pdf, "rb") as arquivo:
+            leitor = PyPDF2.PdfReader(arquivo)
+            primeira_pagina = leitor.pages[0]
+            texto = primeira_pagina.extract_text()
+            for linha in texto.split("\n"):
+                if "Catálogo" in linha:
+                    return linha.strip()
+        return "Catálogo Desconhecido"
+    except Exception as e:
+        print(f"Erro ao ler o PDF: {e}")
+        return "Catálogo Desconhecido"
 
 
 def encontrar_melhor_atividade(descricao_chamado, atividades):
@@ -468,14 +485,29 @@ with st.form("formulario_chamado"):
             st.markdown(f"**Prioridade Sugerida:** {prioridade_sugerida}")
             nome_grupo, grupo_id = classificar_grupo_com_openai(title, note, grupos_dict)
             st.markdown(f"**Grupo Sugerido:** {nome_grupo} (ID: {grupo_id})")
-            atividades_ust = extrair_atividades_csv(csv_atividades)
+            nome_catalogo, atividades_ust = extrair_atividades_csv(csv_atividades)
             resultado = classificar_tipo_chamado(title, note, atividades_ust)
             st.markdown("**Resultado da Classificação de Tipo:**")
             st.text(resultado)
-            csv_atividades = 'consultoria_docker.csv'
-            atividades_ust = extrair_atividades_csv(csv_atividades)
-            melhor_atividade = encontrar_melhor_atividade(f"{title} {note}", atividades_ust)
-            st.text_area("Detalhes das tarefas desenvolvidas e valores UST:", melhor_atividade, height=150)
+            nome_catalogo, atividades_ust = extrair_atividades_csv("consultoria_docker.csv")
+            
+            # Encontrar a melhor atividade e seu valor UST
+            melhor_atividade, ust_valor = encontrar_melhor_atividade(f"{title} {note}", atividades_ust)
+            # Formatar o texto para exibir no text_area
+            if melhor_atividade:
+                if ust_valor is not None:
+                    texto_exibicao = f"{melhor_atividade} (UST: {ust_valor})"
+                    ust_estimado = ust_valor
+                else:
+                    texto_exibicao = melhor_atividade
+                    ust_estimado = "Não se aplica"
+            else:
+                texto_exibicao = "Nenhuma atividade correspondente encontrada."
+                ust_estimado = "Não se aplica"
+
+            # Exibir no text_area
+            st.text_area(f"📘 Fonte: {nome_catalogo}", texto_exibicao, height=150)
+
             if tipo_chamado == "Requisição":
                 # Verificar custos da requisição
                 custos = extrair_atividades_csv("consultoria_docker.csv")
@@ -483,8 +515,8 @@ with st.form("formulario_chamado"):
                 for tarefa, custo in custos:
                     st.write(f"Tarefa: {tarefa} | Custo: {custo}")
                     
-
             st.success("✅ Classificação concluída!")
 
         except Exception as e:
             st.error(f"❌ Erro durante classificação: {e}")
+            
