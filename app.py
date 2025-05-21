@@ -412,6 +412,7 @@ def obter_primeira_descricao(ticket_id):
             return artigos[0].get("body", "")
     return ""
 
+
 # === INTERFACE STREAMLIT ===
 
 st.set_page_config(page_title="Categorizador de Chamados", page_icon="🧠")
@@ -489,26 +490,29 @@ with st.form("formulario_chamado"):
             resultado = classificar_tipo_chamado(title, note, atividades_ust)
             st.markdown("**Resultado da Classificação de Tipo:**")
             st.text(resultado)
+            # Extrair tipo do resultado
+            tipo_classificado = "Incidente" if "Tipo: Incidente" in resultado else "Requisição"
+
             nome_catalogo, atividades_ust = extrair_atividades_csv("consultoria_docker.csv")
             
             # Encontrar a melhor atividade e seu valor UST
             melhor_atividade, ust_valor = encontrar_melhor_atividade(f"{title} {note}", atividades_ust)
-            # Formatar o texto para exibir no text_area
-            if melhor_atividade:
-                if ust_valor is not None:
-                    texto_exibicao = f"{melhor_atividade} (UST: {ust_valor})"
-                    ust_estimado = ust_valor
-                else:
-                    texto_exibicao = melhor_atividade
-                    ust_estimado = "Não se aplica"
+            # Formatar o texto para exibir no text_area com verificação de tipo
+            if tipo_classificado == "Incidente":
+                texto_exibicao = "Este chamado é um Incidente e, portanto, não possui UST estimado."
             else:
-                texto_exibicao = "Nenhuma atividade correspondente encontrada."
-                ust_estimado = "Não se aplica"
-
+                if melhor_atividade:
+                    if ust_valor is not None:
+                        texto_exibicao = f"{melhor_atividade} (UST: {ust_valor})"
+                    else:
+                        texto_exibicao = melhor_atividade
+                else:
+                    texto_exibicao = "Nenhuma atividade correspondente encontrada."
+                    
             # Exibir no text_area
             st.text_area(f"📘 Fonte: {nome_catalogo}", texto_exibicao, height=150)
 
-            if tipo_chamado == "Requisição":
+            if tipo_classificado == "Requisição":
                 # Verificar custos da requisição
                 custos = extrair_atividades_csv("consultoria_docker.csv")
                 st.markdown("**Custos para a Requisição**:")
