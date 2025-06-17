@@ -391,16 +391,46 @@ def encontrar_categoria_pai(categorias, subcategoria_alvo):
     return None
     
   
+# def buscar_chamado_por_numero(numero):
+#     url = f"{ZAMMAD_API_URL}/api/v1/tickets/search?query=number:{numero}"
+#     resposta = requests.get(url, headers=HEADERS_ZAMMAD)
+#     if resposta.status_code == 200:
+#         resultados = resposta.json()
+#         if 'tickets' in resultados and resultados['tickets']:
+#             ticket_id = resultados['tickets'][0]
+#             if 'assets' in resultados and str(ticket_id) in resultados['assets']['Ticket']:
+#                 return resultados['assets']['Ticket'][str(ticket_id)]
+#     return None
+
 def buscar_chamado_por_numero(numero):
-    url = f"{ZAMMAD_API_URL}/api/v1/tickets/search?query=number:{numero}"
-    resposta = requests.get(url, headers=HEADERS_ZAMMAD)
+    # 1. Tentativa rápida via /search (se funcionar)
+    url_search = f"{ZAMMAD_API_URL}/api/v1/tickets/search?query=number:{numero}"
+    resposta = requests.get(url_search, headers=HEADERS_ZAMMAD)
+
     if resposta.status_code == 200:
         resultados = resposta.json()
         if 'tickets' in resultados and resultados['tickets']:
             ticket_id = resultados['tickets'][0]
             if 'assets' in resultados and str(ticket_id) in resultados['assets']['Ticket']:
                 return resultados['assets']['Ticket'][str(ticket_id)]
+    
+    # 2. Fallback: busca paginada
+    pagina = 1
+    while True:
+        url = f"{ZAMMAD_API_URL}/api/v1/tickets?per_page=100&page={pagina}"
+        resposta = requests.get(url, headers=HEADERS_ZAMMAD)
+        if resposta.status_code != 200:
+            break
+        tickets = resposta.json()
+        if not tickets:
+            break
+        for ticket in tickets:
+            if ticket.get("number") == numero:
+                return ticket
+        pagina += 1
+
     return None
+
 
 
 def obter_primeira_descricao(ticket_id):
@@ -414,7 +444,6 @@ def obter_primeira_descricao(ticket_id):
 
 
 # === INTERFACE STREAMLIT ===
-
 st.set_page_config(page_title="Categorizador de Chamados", page_icon="🧠")
 st.title("🧠 Categorizador de Chamados I.A")
 
@@ -478,7 +507,7 @@ with st.form("formulario_chamado"):
             nivel_sugerido = classificar_nivel_com_openai(title, note)
             criticidade_sugerida = classificar_criticidade_com_openai(title, note)
 
-            st.subheader("📊 Classificações Sugeridas:")
+            st.subheader("📊 Classificação Sugerida:")
             st.markdown(f"**Categoria Pai:** {categoria_pai}")
             st.markdown(f"**Subcategoria:** {subcategoria}")
             st.markdown(f"**Nível de Suporte:** {nivel_sugerido}")
@@ -514,11 +543,12 @@ with st.form("formulario_chamado"):
 
             if tipo_classificado == "Requisição":
                 # Verificar custos da requisição
-                custos = extrair_atividades_csv("consultoria_docker.csv")
-                st.markdown("**Custos para a Requisição**:")
-                for tarefa, custo in custos:
-                    st.write(f"Tarefa: {tarefa} | Custo: {custo}")
-                    
+                if melhor_atividade and ust_valor is not None:
+                    st.markdown(f"**Custos para a Requisição ({nome_catalogo})**:")
+                    st.write(f"Tarefa: {melhor_atividade} | Custo: {ust_valor}")
+            else:
+                st.info("Nenhuma atividade correspondente encontrada para estimar o custo.")
+         
             st.success("✅ Classificação concluída!")
 
         except Exception as e:
