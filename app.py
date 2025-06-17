@@ -391,46 +391,17 @@ def encontrar_categoria_pai(categorias, subcategoria_alvo):
     return None
     
   
-# def buscar_chamado_por_numero(numero):
-#     url = f"{ZAMMAD_API_URL}/api/v1/tickets/search?query=number:{numero}"
-#     resposta = requests.get(url, headers=HEADERS_ZAMMAD)
-#     if resposta.status_code == 200:
-#         resultados = resposta.json()
-#         if 'tickets' in resultados and resultados['tickets']:
-#             ticket_id = resultados['tickets'][0]
-#             if 'assets' in resultados and str(ticket_id) in resultados['assets']['Ticket']:
-#                 return resultados['assets']['Ticket'][str(ticket_id)]
-#     return None
-
 def buscar_chamado_por_numero(numero):
-    # 1. Tentativa rápida via /search (se funcionar)
-    url_search = f"{ZAMMAD_API_URL}/api/v1/tickets/search?query=number:{numero}"
-    resposta = requests.get(url_search, headers=HEADERS_ZAMMAD)
+    url = f"{ZAMMAD_API_URL}/api/v1/tickets/search?query=number:{numero}"
+    resposta = requests.get(url, headers=HEADERS_ZAMMAD)
 
     if resposta.status_code == 200:
         resultados = resposta.json()
-        if 'tickets' in resultados and resultados['tickets']:
-            ticket_id = resultados['tickets'][0]
-            if 'assets' in resultados and str(ticket_id) in resultados['assets']['Ticket']:
-                return resultados['assets']['Ticket'][str(ticket_id)]
-    
-    # 2. Fallback: busca paginada
-    pagina = 1
-    while True:
-        url = f"{ZAMMAD_API_URL}/api/v1/tickets?per_page=100&page={pagina}"
-        resposta = requests.get(url, headers=HEADERS_ZAMMAD)
-        if resposta.status_code != 200:
-            break
-        tickets = resposta.json()
-        if not tickets:
-            break
-        for ticket in tickets:
-            if ticket.get("number") == numero:
-                return ticket
-        pagina += 1
+
+        if isinstance(resultados, list) and len(resultados) > 0:
+            return resultados[0]  # Retorna diretamente o primeiro ticket encontrado
 
     return None
-
 
 
 def obter_primeira_descricao(ticket_id):
@@ -462,7 +433,8 @@ with st.form("formulario_chamado"):
             st.stop()
 
         chamado = buscar_chamado_por_numero(numero_chamado.strip())
-        if not chamado:
+        # st.write("🔍 Chamado encontrado:", chamado)
+        if chamado is None:
             st.error(f"❌ Chamado {numero_chamado} não encontrado.")
             st.stop()
             
