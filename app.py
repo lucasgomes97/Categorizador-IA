@@ -17,7 +17,7 @@ client = OpenAI(
 ZAMMAD_API_URL = os.getenv("ZAMMAD_API_URL")
 ZAMMAD_API_TOKEN = os.getenv("ZAMMAD_API_TOKEN")
 CATEGORIA_TXT = "categorias.json"
-OPENAI_MODEL = "gpt-4"
+OPENAI_MODEL = "gpt-4.1"
 
 HEADERS_ZAMMAD = {
     "Authorization": f"Token token={ZAMMAD_API_TOKEN}",
@@ -251,20 +251,21 @@ Responda apenas com: 1 baixo, 2 normal ou 3 alto.
 
 def extrair_atividades_csv(caminho_csv):
     atividades = []
-    nome_catalogo = extrair_nome_catalogo_pdf("CSTI_Docker.pdf")
+    nome_catalogo = "Catálogo Desconhecido"
     with open(caminho_csv, encoding='cp1252') as arquivo:
-        leitor = csv.reader(arquivo, delimiter=';')
-        primeira_linha = next(leitor)  # Lê cabeçalho ou primeira linha
-        if primeira_linha and "Catálogo" in primeira_linha[0]:
-            nome_catalogo = primeira_linha[0].strip()
+        leitor = csv.DictReader(arquivo, delimiter=';')
         for linha in leitor:
-            if len(linha) >= 2:
-                descricao = linha[0].strip()
+            descricao = linha.get("descricao") or linha.get("Descrição") or linha.get("descrição") or linha.get("atividade")
+            ust = linha.get("ust") or linha.get("UST")
+            fonte = linha.get("fonte") or linha.get("Fonte")
+
+            if descricao and ust:
                 try:
-                    ust = float(linha[1].strip())
-                    atividades.append((descricao, ust))
+                    atividades.append((descricao.strip(), float(ust.strip())))
                 except ValueError:
                     continue
+            if fonte:
+                nome_catalogo = fonte.strip()
     return nome_catalogo, atividades
 
 
@@ -326,38 +327,22 @@ atividades_ust = extrair_atividades_csv(csv_atividades)
 
 
 def classificar_tipo_chamado(title, note, atividades_ust):
-    # Encontra a melhor atividade e o valor de UST correspondente
     melhor_atividade, ust_valor = encontrar_melhor_atividade(f"{title} {note}", atividades_ust)
-    
-    # Se o valor de UST estiver presente, extraímos o valor numérico de UST do texto
-    if ust_valor:
-        # Extraímos o valor numérico de UST diretamente da string de "melhor_atividade"
-        ust_estimado = ust_valor.split("UST:")[1].strip().split()[0] if "UST:" in ust_valor else "Não se aplica"
-    else:
-        ust_estimado = "Não se aplica"
 
-    # Monta o prompt com o UST estimado
     prompt = f"""
         Você é um assistente técnico de Service Desk onde analisa chamados técnicos.
 
-        Com base no título e na descrição do chamado, classifique somente como requisição ou incidente, use a definição abaixo para verificar qual melhor se adequa:
+        Com base no título e na descrição do chamado, classifique somente como requisição ou incidente, use a definição abaixo:
 
-        - **Requisição**: quando se trata de solicitações que exigem execução/desemvolvimento de tarefas, mudanças ou serviços.
+        - **Requisição**: quando se trata de solicitações que exigem execução/desenvolvimento de tarefas, mudanças ou serviços.
         - **Incidente**: quando se trata de erros, falhas ou interrupções.
-
-        Se for classificado como Requisição, analise a descrição do chamado e com base nas atividades abaixo, estime a quantidade de UST (Unidades de Serviço Técnico) envolvidas.
-
-        **Atividades e UST disponíveis:**
-        {atividades_ust}
-
 
         Título: {title}
         Descrição: {note}
 
         Retorne neste formato:
         Tipo: Requisição ou Incidente
-        UST estimado: {ust_estimado} Atenção o ust deve ser o mesmo do que está no arquivo, não mude.
-        """.strip()
+    """.strip()
 
     try:
         response = client.chat.completions.create(
@@ -366,11 +351,12 @@ def classificar_tipo_chamado(title, note, atividades_ust):
                 {"role": "system", "content": "Você é um assistente técnico especializado em classificação de chamados."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2
+            temperature=0.1
         )
-        return response.choices[0].message.content.strip()
+        return response.choices[0].message.content.strip(), melhor_atividade
     except Exception as e:
-        return f"Erro ao classificar tipo: {str(e)}"
+        return f"Erro ao classificar tipo: {str(e)}", None
+
 
 
 def atualizar_categoria_chamado(ticket_id, categoria_pai, subcategoria):
@@ -488,40 +474,43 @@ with st.form("formulario_chamado"):
             nome_grupo, grupo_id = classificar_grupo_com_openai(title, note, grupos_dict)
             st.markdown(f"**Grupo Sugerido:** {nome_grupo} (ID: {grupo_id})")
             nome_catalogo, atividades_ust = extrair_atividades_csv(csv_atividades)
-            resultado = classificar_tipo_chamado(title, note, atividades_ust)
+            resultado, melhor_atividade = classificar_tipo_chamado(title, note, atividades_ust)
             st.markdown("**Resultado da Classificação de Tipo:**")
             st.text(resultado)
-            # Extrair tipo do resultado
+
+            # Determina o tipo
             tipo_classificado = "Incidente" if "Tipo: Incidente" in resultado else "Requisição"
 
-            nome_catalogo, atividades_ust = extrair_atividades_csv("consultoria_docker.csv")
-            
-            # Encontrar a melhor atividade e seu valor UST
-            melhor_atividade, ust_valor = encontrar_melhor_atividade(f"{title} {note}", atividades_ust)
-            # Formatar o texto para exibir no text_area com verificação de tipo
+            # Prepara o texto de exibição da melhor atividade com UST
             if tipo_classificado == "Incidente":
                 texto_exibicao = "Este chamado é um Incidente e, portanto, não possui UST estimado."
+                ust_extraida = None
             else:
                 if melhor_atividade:
-                    if ust_valor is not None:
-                        texto_exibicao = f"{melhor_atividade} (UST: {ust_valor})"
-                    else:
-                        texto_exibicao = melhor_atividade
+                    texto_exibicao = melhor_atividade
+                    # Tenta extrair UST do texto, padrão (UST: 3) ou (UST: 3.0)
+                    import re
+                    match = re.search(r"([\d\.]+)\s*UST", melhor_atividade, re.IGNORECASE)
+                    ust_extraida = match.group(1) if match else None
                 else:
                     texto_exibicao = "Nenhuma atividade correspondente encontrada."
-                    
-            # Exibir no text_area
-            st.text_area(f"📘 Fonte: {nome_catalogo}", texto_exibicao, height=150)
+                    ust_extraida = None
 
+            # Mostra a estimativa real da UST, se for requisição
             if tipo_classificado == "Requisição":
-                # Verificar custos da requisição
-                if melhor_atividade and ust_valor is not None:
-                    st.markdown(f"**Custos para a Requisição ({nome_catalogo})**:")
-                    st.write(f"Tarefa: {melhor_atividade} | Custo: {ust_valor}")
+                if ust_extraida:
+                    st.markdown(f"**UST estimado:** {ust_extraida}")
+                    st.markdown(f"**Custos para a Requisição (📘 Fonte:{nome_catalogo})**:")
+                    st.write(f"Tarefa: {melhor_atividade} | Custo: {ust_extraida}")
             else:
-                st.info("Nenhuma atividade correspondente encontrada para estimar o custo.")
+                st.info("Requisição identificada, mas UST não encontrada no texto.")
          
-            st.success("✅ Classificação concluída!")
+            if tipo_classificado == "Requisição" and ust_extraida:
+                st.success(f"✅ Classificação concluída!\nTipo: {tipo_classificado}\nUST estimado: {ust_extraida}")
+            elif tipo_classificado == "Requisição":
+                st.success(f"✅ Classificação concluída!\nTipo: {tipo_classificado}\nUST estimado: Não encontrada")
+            else:
+                st.success(f"✅ Classificação concluída!\nTipo: {tipo_classificado}")
 
         except Exception as e:
             st.error(f"❌ Erro durante classificação: {e}")
