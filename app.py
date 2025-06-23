@@ -472,7 +472,7 @@ with st.form("formulario_chamado"):
             st.markdown(f"**Criticidade:** {criticidade_sugerida}")
             st.markdown(f"**Prioridade Sugerida:** {prioridade_sugerida}")
             nome_grupo, grupo_id = classificar_grupo_com_openai(title, note, grupos_dict)
-            st.markdown(f"**Grupo Sugerido:** {nome_grupo} (ID: {grupo_id})")
+            st.markdown(f"**Grupo Sugerido** {nome_grupo} (ID: {grupo_id})")
             nome_catalogo, atividades_ust = extrair_atividades_csv(csv_atividades)
             resultado, melhor_atividade = classificar_tipo_chamado(title, note, atividades_ust)
             st.markdown("**Resultado da Classificação de Tipo:**")
@@ -499,12 +499,16 @@ with st.form("formulario_chamado"):
             # Mostra a estimativa real da UST, se for requisição
             if tipo_classificado == "Requisição":
                 if ust_extraida:
-                    st.markdown(f"**UST estimado:** {ust_extraida}")
-                    st.markdown(f"**Custos para a Requisição (📘 Fonte:{nome_catalogo})**:")
-                    st.write(f"Tarefa: {melhor_atividade} | Custo: {ust_extraida}")
+                    st.subheader("💰 Custos da Requisição:")
+                    st.markdown(f"- **UST estimado:** {ust_extraida}")
+                    st.markdown(f"- **Fonte:** {nome_catalogo}")
+                    st.markdown(f"- **Tarefa:** {melhor_atividade}")
+                else:
+                    st.warning("🚫 Requisição identificada, mas UST não encontrada no texto.")
             else:
-                st.info("Requisição identificada, mas UST não encontrada no texto.")
-         
+                st.info("ℹ️ Este chamado é um **Incidente** e, portanto, não possui UST estimado.")
+
+        
             if tipo_classificado == "Requisição" and ust_extraida:
                 st.success(f"✅ Classificação concluída!\nTipo: {tipo_classificado}\nUST estimado: {ust_extraida}")
             elif tipo_classificado == "Requisição":
