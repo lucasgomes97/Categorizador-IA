@@ -6,6 +6,7 @@ import csv
 from openai import OpenAI
 import json
 import PyPDF2
+import textwrap
 
 # === CONFIGURAÇÕES ===
 
@@ -251,20 +252,20 @@ Responda apenas com: 1 baixo, 2 normal ou 3 alto.
 
 def extrair_atividades_csv(caminho_csv):
     atividades = []
-    nome_catalogo = "Catálogo Desconhecido"
+    nome_catalogo = None
     with open(caminho_csv, encoding='cp1252') as arquivo:
         leitor = csv.DictReader(arquivo, delimiter=';')
         for linha in leitor:
             descricao = linha.get("descricao") or linha.get("Descrição") or linha.get("descrição") or linha.get("atividade")
             ust = linha.get("ust") or linha.get("UST")
-            fonte = linha.get("fonte") or linha.get("Fonte")
+            fonte = linha.get("fonte") or linha.get("Fonte") or "Fonte não especificada"
 
             if descricao and ust:
                 try:
-                    atividades.append((descricao.strip(), float(ust.strip())))
+                    atividades.append((descricao.strip(), float(ust.strip()), fonte.strip()))
                 except ValueError:
                     continue
-            if fonte:
+            if not nome_catalogo and fonte:
                 nome_catalogo = fonte.strip()
     return nome_catalogo, atividades
 
@@ -284,50 +285,85 @@ def extrair_nome_catalogo_pdf(caminho_pdf):
         return "Catálogo Desconhecido"
 
 
-def encontrar_melhor_atividade(descricao_chamado, atividades):
+def encontrar_melhor_atividade(titulo_chamado, descricao_chamado, atividades):
     if not descricao_chamado:
-        return None
+        return None, None, None
 
     prompt = f"""
-        Você é um assistente técnico. A seguir estão descrições de tarefas com suas respectivas estimativas de esforço (UST). Com base no chamado descrito abaixo, escolha a tarefa que mais se adequa. Retorne exatamente o texto da tarefa conforme aparece na lista e o valor UST desta tarefa.
+        Você é um assistente técnico treinado para identificar tarefas específicas em um catálogo fechado. O catálogo de fontes, tarefas e UST está listado logo abaixo e é a **única fonte confiável**.
+        ---
+        📌 **REGRAS OBRIGATÓRIAS**:
+        - Você **NÃO PODE inventar, adaptar ou sugerir tarefas ou fontes** fora da lista abaixo.
+        - A tarefa, UST e fonte devem vir **exatamente do catálogo listado**.
+        - Se encontrar uma correspondência perfeita, retorne neste formato:
 
-        Chamado:
-        {descricao_chamado}
+        Tarefa: [descrição exata da tarefa]
+        UST: [valor]
+        Fonte: [fonte exata]
 
-        Tarefas disponíveis:
-        """ + "\n".join([f"- {desc} (UST: {ust})" for desc, ust in atividades]) + """
+        - Se **não encontrar nenhuma correspondente**, procure a **mais parecida** e retorne assim:
 
-        Retorne exatamente a descrição da tarefa mais adequada e seu valor em UST, sem alterar o texto.
+        ❌ Nenhuma tarefa referente encontrada nos catálogos. A mais próxima e recomendada é:
+        Tarefa: [descrição mais semelhante da lista]
+        UST: [valor]
+        Fonte: [fonte da linha correspondente com o assunto do chamado]
+
+        ⚠️ Caso invente qualquer texto fora da lista final, será considerado erro crítico inadimicivel.
+
+        ---
+
+        📦 Catálogo fechado de tarefas disponíveis:
+        """ + "\n".join([f"- {desc} (UST: {ust}, Fonte: {fonte})" for desc, ust, fonte in atividades]) + f"""
+
+        ---
+        📝 Chamado a ser analisado:
+        Título: {titulo_chamado}
+        Descrição: {descricao_chamado}
+
+        🔚 Agora retorne apenas conforme os formatos exigidos acima, sem explicações extras.
         """
 
     try:
         response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
-                {"role": "system", "content": "Você é um assistente que escolhe tarefas com base em descrições de chamados."},
+                {"role": "system", "content": "Você seleciona e analisa tarefas, fontes e UST do catálogo sem inventar."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2
+            temperature=0.0
         )
-        descricao_escolhida = response.choices[0].message.content.strip()
 
-        # Localiza a UST original correspondente à descrição retornada
-        for desc, ust in atividades:
-            if desc.strip().lower() == descricao_escolhida.strip().lower():
-                return desc, ust
+        resposta = response.choices[0].message.content.strip()
 
-        return descricao_escolhida, None  # UST não encontrada
+        # Processa a resposta
+        if resposta.startswith('Tarefa:'):
+            # Resposta de correspondência perfeita
+            linhas = resposta.split('\n')
+            tarefa = linhas[0].replace('Tarefa:', '').strip()
+            ust = linhas[1].replace('UST:', '').strip()
+            fonte = linhas[2].replace('Fonte:', '').strip()
+            return tarefa, ust, fonte
+
+        elif resposta.startswith('❌'):
+            # Resposta de sugestão (não encontrou perfeita)
+            linhas = resposta.split('\n')
+            tarefa = linhas[1].replace('Tarefa:', '').strip()
+            ust = linhas[2].replace('UST:', '').strip()
+            fonte = linhas[3].replace('Fonte:', '').strip()
+            return tarefa, ust, fonte
+
+        else:
+            return "Resposta fora do formato esperado.", None, None
 
     except Exception as e:
-        return f"Erro ao encontrar atividade: {str(e)}", None
-
+        return f"Erro ao encontrar atividade: {str(e)}", None, None
 
 csv_atividades = 'consultoria_docker.csv'
 atividades_ust = extrair_atividades_csv(csv_atividades)
 
 
 def classificar_tipo_chamado(title, note, atividades_ust):
-    melhor_atividade, ust_valor = encontrar_melhor_atividade(f"{title} {note}", atividades_ust)
+    melhor_atividade, ust_valor, fonte_catalogo = encontrar_melhor_atividade(title, note, atividades_ust)
 
     prompt = f"""
         Você é um assistente técnico de Service Desk onde analisa chamados técnicos.
@@ -353,9 +389,9 @@ def classificar_tipo_chamado(title, note, atividades_ust):
             ],
             temperature=0.1
         )
-        return response.choices[0].message.content.strip(), melhor_atividade
+        return response.choices[0].message.content.strip(), melhor_atividade, ust_valor, fonte_catalogo
     except Exception as e:
-        return f"Erro ao classificar tipo: {str(e)}", None
+        return f"Erro ao classificar tipo: {str(e)}", melhor_atividade, ust_valor, fonte_catalogo
 
 
 
@@ -474,7 +510,7 @@ with st.form("formulario_chamado"):
             nome_grupo, grupo_id = classificar_grupo_com_openai(title, note, grupos_dict)
             st.markdown(f"**Grupo Sugerido** {nome_grupo} (ID: {grupo_id})")
             nome_catalogo, atividades_ust = extrair_atividades_csv(csv_atividades)
-            resultado, melhor_atividade = classificar_tipo_chamado(title, note, atividades_ust)
+            resultado, melhor_atividade, ust_valor, fonte_catalogo = classificar_tipo_chamado(title, note, atividades_ust)
             st.markdown("**Resultado da Classificação de Tipo:**")
             st.text(resultado)
 
@@ -487,28 +523,29 @@ with st.form("formulario_chamado"):
                 ust_extraida = None
             else:
                 if melhor_atividade:
-                    texto_exibicao = melhor_atividade
-                    # Tenta extrair UST do texto, padrão (UST: 3) ou (UST: 3.0)
-                    import re
-                    match = re.search(r"([\d\.]+)\s*UST", melhor_atividade, re.IGNORECASE)
-                    ust_extraida = match.group(1) if match else None
+                    if melhor_atividade.lower().startswith("atividade não encontrada"):
+                        # Mensagem retornada pela IA quando não encontra exatamente
+                        texto_exibicao = melhor_atividade
+                        ust_extraida = None
+                    else:
+                        texto_exibicao = melhor_atividade
+                        ust_extraida = ust_valor
                 else:
                     texto_exibicao = "Nenhuma atividade correspondente encontrada."
                     ust_extraida = None
 
             # Mostra a estimativa real da UST, se for requisição
             if tipo_classificado == "Requisição":
+                st.subheader("💰 Análise da Tarefa do Catálogo:")
+                st.markdown(f"- **Fonte:** {nome_catalogo}")  
+
+                st.markdown(f"- **Resultado da busca no catálogo:**\n{textwrap.fill(texto_exibicao, width=80)}")
                 if ust_extraida:
-                    st.subheader("💰 Custos da Requisição:")
                     st.markdown(f"- **UST estimado:** {ust_extraida}")
-                    st.markdown(f"- **Fonte:** {nome_catalogo}")
-                    st.markdown(f"- **Tarefa:** {melhor_atividade}")
-                else:
-                    st.warning("🚫 Requisição identificada, mas UST não encontrada no texto.")
+                
             else:
                 st.info("ℹ️ Este chamado é um **Incidente** e, portanto, não possui UST estimado.")
 
-        
             if tipo_classificado == "Requisição" and ust_extraida:
                 st.success(f"✅ Classificação concluída!\nTipo: {tipo_classificado}\nUST estimado: {ust_extraida}")
             elif tipo_classificado == "Requisição":
@@ -518,4 +555,3 @@ with st.form("formulario_chamado"):
 
         except Exception as e:
             st.error(f"❌ Erro durante classificação: {e}")
-            
