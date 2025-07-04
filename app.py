@@ -7,7 +7,7 @@ from openai import OpenAI
 import json
 import PyPDF2
 from bs4 import BeautifulSoup
-
+import re
 
 # === CONFIGURAÇÕES ===
 
@@ -57,15 +57,15 @@ def limpar_html(texto):
 def gerar_prompt(title, note, categorias_dict):
     prompt = """Você é um assistente especializado na **categorização de chamados de Service Desk**. Sua tarefa é analisar o título e a descrição do chamado e classificá-lo corretamente com **uma categoria e subcategoria** entre as opções fornecidas.
 
-📌 **REGRAS IMPORTANTES**:
-- Use **exclusivamente** as categorias e subcategorias listadas abaixo.
-- Algumas podem estar escritas de forma diferente no chamado. Use o **contexto e o significado** para encontrar a correspondência correta.
-- Se houver mais de uma possibilidade, escolha a opção **mais precisa e relevante**.
-- **Não invente** novas categorias ou subcategorias.
-- A saída deve ser apenas no formato: `Categoria > Subcategoria`
+        📌 **REGRAS IMPORTANTES**:
+        - Use **exclusivamente** as categorias e subcategorias listadas abaixo.
+        - Algumas podem estar escritas de forma diferente no chamado. Use o **contexto e o significado** para encontrar a correspondência correta.
+        - Se houver mais de uma possibilidade, escolha a opção **mais precisa e relevante**.
+        - **Não invente** novas categorias ou subcategorias.
+        - A saída deve ser apenas no formato: `Categoria > Subcategoria`
 
-🔽 **Categorias e Subcategorias Disponíveis**:
-"""
+        🔽 **Categorias e Subcategorias Disponíveis**:
+        """
     for categoria, subcategorias in categorias_dict.items():
         for sub in subcategorias:
             prompt += f"- {categoria} > {sub}\n"
@@ -112,7 +112,8 @@ def classificar_grupo_com_openai(title, note, grupos_dict):
     opcoes_formatadas = "\n".join([f"- {g}" for g in nomes_grupos])
 
     prompt = f"""
-        Você é um assistente técnico responsável por classificar chamados. Com base no título e na descrição de um chamado, classifique-o de acordo com o grupo correto abaixo,selecione apenas 1 grupo:
+        Você é um assistente técnico responsável por classificar chamados. 
+        Com base no título e na descrição de um chamado, classifique-o de acordo com o grupo correto abaixo,selecione apenas 1 grupo:
 
         Grupos disponíveis:
         {opcoes_formatadas}
@@ -148,19 +149,20 @@ grupos_dict = carregar_grupos("Grupos.txt")
 
 def classificar_nivel_com_openai(title, note):
     definicoes_nivel = """
-Você é um assistente técnico treinado para classificar chamados com base em níveis de suporte técnico,Sua tarefa é classificar chamados técnicos em um dos três níveis de complexidade, conforme as definições abaixo::
+        Você é um assistente técnico treinado para classificar chamados com base em níveis de suporte técnico,
+        Sua tarefa é classificar chamados técnicos em um dos três níveis de complexidade, conforme as definições abaixo::
 
-- Nível 1 (N1): Chamados básicos, como reiniciar serviços, monitoramento simples, problemas simples de login, coleta de logs, uso básico de comandos Docker.
-- Nível 2 (N2): Chamados intermediários com análise de performance detalhada, ajustes de configuração, problemas de rede avançados, gerenciamento de certificados e logs.
-- Nível 3 (N3): Chamados críticos e complexos, como containers que não iniciam, falhas graves no Docker Daemon, perda de dados, desempenho gravemente degradado, falhas de volume e problemas em clusters Docker Swarm.
+        - Nível 1 (N1): Chamados básicos, como reiniciar serviços, monitoramento simples, problemas simples de login, coleta de logs, uso básico de comandos Docker.
+        - Nível 2 (N2): Chamados intermediários com análise de performance detalhada, ajustes de configuração, problemas de rede avançados, gerenciamento de certificados e logs.
+        - Nível 3 (N3): Chamados críticos e complexos, como containers que não iniciam, falhas graves no Docker Daemon, perda de dados, desempenho gravemente degradado, falhas de volume e problemas em clusters Docker Swarm.
 
-Classifique o chamado abaixo como N1, N2 ou N3 apenas com base nas definições acima.
+        Classifique o chamado abaixo como N1, N2 ou N3 apenas com base nas definições acima.
 
-Título: {title}
-Descrição: {note}
+        Título: {title}
+        Descrição: {note}
 
-Responda apenas com: N1, N2 ou N3.
-""".strip()
+        Responda apenas com: N1, N2 ou N3.
+        """.strip()
 
     if not title.strip() and not note.strip():
         return "Indefinido – título ou descrição ausente."
@@ -189,20 +191,20 @@ Responda apenas com: N1, N2 ou N3.
 
 def classificar_criticidade_com_openai(title, note):
     definicoes_criticidade = """
-Você é um assistente técnico treinado para classificar chamados com base na criticidade do problema onde analisa o titulo do chamado e descrição e avalia o chamado apartir da definições abaixo:
+        Você é um assistente técnico treinado para classificar chamados com base na criticidade do problema onde analisa o titulo do chamado e descrição e avalia o chamado apartir da definições abaixo:
 
-- Crítico (1): Problemas graves que afetam diretamente o funcionamento do serviço, como falhas críticas, perda de dados, ou falha no serviço principal.
-- Alto (2): Problemas significativos que afetam o desempenho, mas não paralisam completamente o serviço.
-- Normal (3): Problemas de médio impacto, como ajustes ou melhorias que não afetam diretamente o serviço.
-- Baixo (4): Problemas menores ou questões de manutenção, como ajustes de configuração, problemas não urgentes ou simples dúvidas.
+        - Crítico (1): Problemas graves que afetam diretamente o funcionamento do serviço, como falhas críticas, perda de dados, ou falha no serviço principal.
+        - Alto (2): Problemas significativos que afetam o desempenho, mas não paralisam completamente o serviço.
+        - Normal (3): Problemas de médio impacto, como ajustes ou melhorias que não afetam diretamente o serviço.
+        - Baixo (4): Problemas menores ou questões de manutenção, como ajustes de configuração, problemas não urgentes ou simples dúvidas.
 
-Classifique o chamado abaixo como Crítico (1), Alto (2), Normal (3) ou Baixo (4) apenas com base nas definições acima.
+        Classifique o chamado abaixo como Crítico (1), Alto (2), Normal (3) ou Baixo (4) apenas com base nas definições acima.
 
-Título: {title}
-Descrição: {note}
+        Título: {title}
+        Descrição: {note}
 
-Responda apenas com: 1 Crítico, 2 Alto, 3 Normal ou 4 Baixo.
-""".strip()
+        Responda apenas com: 1 Crítico, 2 Alto, 3 Normal ou 4 Baixo.
+        """.strip()
 
     if not title.strip() and not note.strip():
         return "Indefinido – título ou descrição ausente."
@@ -225,19 +227,19 @@ Responda apenas com: 1 Crítico, 2 Alto, 3 Normal ou 4 Baixo.
 
 def classificar_prioridade_com_openai(title, note):
     definicoes_prioridade = """
-Você é um assistente técnico treinado para classificar chamados com base na prioridade, onde analisa o titulo do chamado e descrição e avalia o chamado apartir da definições abaixo:
+        Você é um assistente técnico treinado para classificar chamados com base na prioridade, onde analisa o titulo do chamado e descrição e avalia o chamado apartir da definições abaixo:
 
-- 1 (Baixo): Solicitações não urgentes, sem impacto imediato ou relacionadas a dúvidas e melhorias menores.
-- 2 (Normal): Chamados que requerem atenção no fluxo padrão, mas sem urgência.
-- 3 (Alto): Chamados que devem ser tratados o quanto antes, com impacto considerável, mas que não são críticos.
+        - 1 (Baixo): Solicitações não urgentes, sem impacto imediato ou relacionadas a dúvidas e melhorias menores.
+        - 2 (Normal): Chamados que requerem atenção no fluxo padrão, mas sem urgência.
+        - 3 (Alto): Chamados que devem ser tratados o quanto antes, com impacto considerável, mas que não são críticos.
 
-Classifique o chamado abaixo como 1, 2 ou 3, de acordo com essas definições.
+        Classifique o chamado abaixo como 1, 2 ou 3, de acordo com essas definições.
 
-Título: {title}
-Descrição: {note}
+        Título: {title}
+        Descrição: {note}
 
-Responda apenas com: 1 baixo, 2 normal ou 3 alto.
-""".strip()
+        Responda apenas com: 1 baixo, 2 normal ou 3 alto.
+        """.strip()
 
     if not title.strip() and not note.strip():
         return "Indefinido – título ou descrição ausente."
@@ -260,22 +262,22 @@ Responda apenas com: 1 baixo, 2 normal ou 3 alto.
 
 def extrair_atividades_csv(caminho_csv):
     atividades = []
-    nome_catalogo = "Catálogo Desconhecido"
     with open(caminho_csv, encoding='cp1252') as arquivo:
         leitor = csv.DictReader(arquivo, delimiter=';')
         for linha in leitor:
-            descricao = linha.get("Tarefa")  # Pega a coluna correta
-            ust = linha.get(" UST") or linha.get("UST")  # Corrige espaços no cabeçalho
+            descricao = linha.get("Tarefa")
+            ust = linha.get(" UST") or linha.get("UST")
             fonte = linha.get("Fonte")
-
-            if descricao and ust:
+            if descricao and ust and fonte:
                 try:
-                    atividades.append((descricao.strip(), float(ust.strip())))
+                    atividades.append({
+                        "descricao": descricao.strip(),
+                        "ust": float(ust.strip()),
+                        "fonte": fonte.strip()
+                    })
                 except ValueError:
                     continue
-            if fonte:
-                nome_catalogo = fonte.strip()
-    return nome_catalogo, atividades
+    return atividades
 
 
 def extrair_nome_catalogo_pdf(caminho_pdf):
@@ -293,93 +295,100 @@ def extrair_nome_catalogo_pdf(caminho_pdf):
         return "Catálogo Desconhecido"
 
 
-def encontrar_melhor_atividade(descricao_chamado, atividades):
-    if not descricao_chamado:
-        return None, None
+def encontrar_melhor_atividade(chamado, atividades):
+    if not chamado:
+        return None
 
-    tarefas_formatadas = "\n".join([f"- {desc} (UST: {ust})" for desc, ust in atividades])
+    tarefas_formatadas = "\n".join(
+        [f"- {a['descricao']} (UST: {a['ust']}) [Fonte: {a['fonte']}]" for a in atividades]
+    )
 
     prompt = f"""
-        Você é um assistente técnico. A seguir está uma lista de tarefas extraídas de um catálogo técnico (com suas respectivas estimativas de esforço em UST).
+        Você é um classificador técnico. Escolha **exatamente uma tarefa da lista** que melhor corresponde ao chamado abaixo.
 
-        🛑 Você deve selecionar **exclusivamente uma tarefa dessa lista** com base na descrição do chamado.
-
-        ⚠️ NÃO invente nenhuma tarefa, e NÃO use exemplos fora da lista.
-
-        🔍 Se não houver correspondência exata, escolha a tarefa **mais tecnicamente relacionada** (por exemplo, se for coleta de métricas ou monitoramento, escolha uma tarefa que trate disso), o nome do catalogo deve ser condizente com o chamado.
-        
         🔽 Chamado:
-        \"\"\"{descricao_chamado}\"\"\"
+        '''{chamado}'''
 
         🔽 Tarefas disponíveis:
         {tarefas_formatadas}
 
-        ✅ Responda **exatamente neste formato**:
-        - Descrição da Tarefa: <descrição da tarefa da lista>
-        - UST: <valor da UST da tarefa selecionada>
+        ✅ Responda neste formato:
+        - Descrição da Tarefa: <copiado da lista>
+        - UST: <valor>
+        - Fonte: <copiado da lista>
         """.strip()
 
     try:
         response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
-                {"role": "system", "content": "Você é um assistente técnico especializado em tarefas de catálogo."},
+                {"role": "system", "content": "Você é um classificador técnico que só pode escolher tarefas da lista fornecida."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.2
+            temperature=0.0
         )
 
         resposta = response.choices[0].message.content.strip()
 
-        import re
-        match = re.search(r"Descrição da Tarefa:\s*(.*?)\s*UST:\s*([\d\.]+)", resposta, re.IGNORECASE)
+        print("🔹 PROMPT ENVIADO:")
+        print(prompt)
+        print("🔹 RESPOSTA DO MODELO:")
+        print(resposta)
+
+        # Regex ajustado para aceitar quebra de linha entre os campos
+        match = re.search(r"Descrição da Tarefa:\s*(.*?)\n.*?UST:\s*([\d\.]+)\n.*?Fonte:\s*(.*)", resposta, re.IGNORECASE | re.DOTALL)
         if match:
-            descricao_tarefa = match.group(1).strip()
-            ust_valor = float(match.group(2).strip())
-            return descricao_tarefa, ust_valor
-        else:
-            return resposta, None
+            return {
+                "descricao": match.group(1).strip(),
+                "ust": float(match.group(2).strip()),
+                "fonte": match.group(3).strip()
+            }
+        return None
 
     except Exception as e:
-        return f"Erro ao encontrar atividade: {str(e)}", None
+        print("⚠️ Erro durante chamada à OpenAI:", e)
+        return None
 
+    
 
 csv_atividades = 'consultoria.csv'
 atividades_ust = extrair_atividades_csv(csv_atividades)
 
 
-def classificar_tipo_chamado(title, note, atividades_ust):
-    melhor_atividade, ust_valor = encontrar_melhor_atividade(f"{title} {note}", atividades_ust)
+def classificar_tipo_chamado(title, note, atividades):
+    descricao_completa = f"{title}\n{note}"
+    atividade = encontrar_melhor_atividade(descricao_completa, atividades)
 
-    prompt = f"""
-        Você é um assistente técnico de Service Desk onde analisa chamados técnicos.
+    prompt_tipo = f"""
+Você é um assistente técnico. Classifique o chamado abaixo como:
+- **Requisição**: Solicitação de execução, melhoria, análise ou mudança técnica.
+- **Incidente**: Falha, erro ou interrupção inesperada de um serviço ou sistema.
 
-        Com base no título e na descrição do chamado, classifique somente como requisição ou incidente, use a definição abaixo:
+Título: {title}
+Descrição: {note}
 
-        - **Requisição**: quando se trata de solicitações que exigem execução/desenvolvimento de tarefas, mudanças ou serviços.
-        - **Incidente**: quando se trata de erros, falhas ou interrupções.
-
-        Título: {title}
-        Descrição: {note}
-
-        Retorne neste formato:
-        Tipo: Requisição ou Incidente
-    """.strip()
+Responda apenas:
+Tipo: Requisição ou Incidente
+""".strip()
 
     try:
         response = client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
-                {"role": "system", "content": "Você é um assistente técnico especializado em classificação de chamados."},
-                {"role": "user", "content": prompt}
+                {"role": "system", "content": "Você é um assistente técnico experiente."},
+                {"role": "user", "content": prompt_tipo}
             ],
             temperature=0.1
         )
-        return response.choices[0].message.content.strip(), melhor_atividade
+        tipo = response.choices[0].message.content.strip()
+        return tipo, atividade
     except Exception as e:
-        return f"Erro ao classificar tipo: {str(e)}", None
+        print("⚠️ Erro durante classificação de tipo:", e)
+        return "Erro", None
 
 
+    
+    
 def atualizar_categoria_chamado(ticket_id, categoria_pai, subcategoria):
     payload = {
         "categoria": [categoria_pai, subcategoria]
@@ -495,8 +504,8 @@ with st.form("formulario_chamado"):
             st.markdown(f"**Prioridade Sugerida:** {prioridade_sugerida}")
             nome_grupo, grupo_id = classificar_grupo_com_openai(title, note, grupos_dict)
             st.markdown(f"**Grupo Sugerido** {nome_grupo} (ID: {grupo_id})")
-            nome_catalogo, atividades_ust = extrair_atividades_csv(csv_atividades)
-            resultado, melhor_atividade = classificar_tipo_chamado(title, note, atividades_ust)
+            atividades_ust = extrair_atividades_csv(csv_atividades)
+            resultado, atividade_detalhada = classificar_tipo_chamado(title, note, atividades_ust)
             st.markdown("**Resultado da Classificação de Tipo:**")
             st.text(resultado)
 
@@ -508,29 +517,31 @@ with st.form("formulario_chamado"):
                 texto_exibicao = "Este chamado é um Incidente e, portanto, não possui UST estimado."
                 ust_extraida = None
             else:
-                if melhor_atividade:
-                    texto_exibicao = melhor_atividade
-                    # Tenta extrair UST do texto, padrão (UST: 3) ou (UST: 3.0)
-                    import re
-                    match = re.search(r"UST:\s*([\d\.]+)", melhor_atividade, re.IGNORECASE)
-                    ust_extraida = match.group(1) if match else None
+                if atividade_detalhada:
+                    texto_exibicao = atividade_detalhada["descricao"]
+                    ust_extraida = atividade_detalhada["ust"]
+                    fonte_atividade = atividade_detalhada["fonte"]
+
                 else:
                     texto_exibicao = "Nenhuma atividade correspondente encontrada."
                     ust_extraida = None
 
             # Mostra a estimativa real da UST, se for requisição
             if tipo_classificado == "Requisição":
-                if melhor_atividade:
+                if atividade_detalhada:
                     st.subheader("💰 Custos da Requisição:")
-                    st.markdown(f"- **Fonte:** {nome_catalogo}")
-                    st.markdown(f"- **Tarefa:** {melhor_atividade}")
+                    st.markdown(f"- **Fonte:** {fonte_atividade}")
+                    st.markdown(f"- **Tarefa:** {texto_exibicao}")
+                    st.markdown(f"- **UST:** {ust_extraida}")
+
                 else:
                     st.warning("🚫 Nenhuma atividade correspondente foi encontrada no catálogo para esta requisição.")
             else:
                 st.info("ℹ️ Este chamado é um **Incidente** e, portanto, não possui UST estimado.")
 
-            if tipo_classificado == "Requisição" and ust_extraida:
-                st.success(f"✅ Classificação concluída!\nTipo: {tipo_classificado}\nUST estimado: {ust_extraida}")
+            if tipo_classificado == "Requisição" and atividade_detalhada:
+                st.success(f"✅ Classificação concluída!\nTipo: {tipo_classificado}\nUST estimado: {atividade_detalhada['ust']}")
+                
             elif tipo_classificado == "Requisição":
                 st.success(f"✅ Classificação concluída!\nTipo: {tipo_classificado}\nUST estimado: Não encontrada")
             else:
